@@ -1,0 +1,35 @@
+{
+  "name": "api-predial",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "build": "npx prisma generate",
+    "deploy": "npx prisma migrate deploy && node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^1.41.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "multer": "^2.0.1",
+    "multer-storage-cloudinary": "^4.0.0",
+    "nodemailer": "^6.9.16",
+    "pdfkit": "^0.15.1",
+    "prisma": "^6.19.3"
+  }
+}

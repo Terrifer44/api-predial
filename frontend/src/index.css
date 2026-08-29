@@ -1,0 +1,101 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+/* ==========================================
+   TOKENS DE DESIGN
+   Paleta técnica/industrial (planta baixa, ordem de serviço)
+   em vez do padrão genérico "dashboard SaaS escuro".
+========================================== */
+@theme {
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* Base */
+  --color-graphite: #14171a;
+  --color-panel: #1a1e22;
+  --color-panel-2: #20252a;
+  --color-line: #2b3136;
+  --color-line-soft: #23282d;
+  --color-ink: #eceef0;
+  --color-muted: #8b939b;
+  --color-faint: #5c646c;
+
+  /* Acento primário: azul de planta técnica (blueprint) */
+  --color-blueprint: #4a84b8;
+  --color-blueprint-bright: #6ba3d6;
+
+  /* Sinalização (cores de segurança industrial) */
+  --color-amber: #cf9435;
+  --color-signal: #c1544a;
+  --color-moss: #5a9b76;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-graphite);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: var(--color-blueprint);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-blueprint-bright);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--color-line);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-faint);
+  }
+}
+
+@layer components {
+  /* Textura sutil de "papel de planta" no fundo da página */
+  .bg-blueprint-grid {
+    background-image:
+      linear-gradient(var(--color-line-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-line-soft) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: -1px -1px;
+  }
+
+  /* Divisória tracejada, remete ao canhoto destacável de uma ordem de serviço física */
+  .ticket-tear {
+    position: relative;
+    border-top: 1px dashed var(--color-line);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--color-line);
+    border-radius: 3px;
+  }
+}

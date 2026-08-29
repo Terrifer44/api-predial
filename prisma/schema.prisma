@@ -1,0 +1,137 @@
+generator client {
+provider = "prisma-client-js"
+}
+
+datasource db {
+provider = "mysql"
+url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------
+// ENUMS
+// ----------------------------------------------------
+enum TipoUsuario {
+MORADOR
+OPERARIO
+ADMINISTRADOR
+}
+
+enum StatusDemanda {
+PENDENTE
+ATRIBUIDA
+EM_ANDAMENTO
+IMPEDIMENTO
+CONCLUIDA
+}
+
+enum Urgencia {
+BAIXA
+MEDIA
+ALTA
+}
+
+// ----------------------------------------------------
+// MODELOS
+// ----------------------------------------------------
+model Usuario {
+id            Int         @id @default(autoincrement())
+nome          String
+codigo_acesso String      @unique
+senha_hash    String
+telefone      String?
+email         String?
+tipo_usuario  TipoUsuario @default(MORADOR)
+ativo         Boolean     @default(true)
+criado_em     DateTime    @default(now())
+
+reset_token        String?   @unique
+reset_token_expira DateTime?
+
+demandasCriadas    Demanda[]         @relation("MoradorDemandas")
+demandasAtribuidas Demanda[]         @relation("OperarioDemandas")
+historicos         HistoricoStatus[]
+comentarios        ComentarioDemanda[]
+notificacoes       Notificacao[]
+
+@@map("usuarios")
+}
+
+model Demanda {
+id                 Int           @id @default(autoincrement())
+setor              String
+descricao          String
+urgencia_morador   Urgencia
+urgencia_real      Urgencia?
+status             StatusDemanda @default(PENDENTE)
+motivo_impedimento String?       @db.Text
+foto_url           String?
+sla_prazo          DateTime?
+criado_em          DateTime      @default(now())
+atualizado_em      DateTime      @default(now()) @updatedAt
+
+id_morador Int
+morador    Usuario @relation("MoradorDemandas", fields: [id_morador], references: [id])
+
+id_operario Int?
+operario    Usuario? @relation("OperarioDemandas", fields: [id_operario], references: [id])
+
+historicos  HistoricoStatus[]
+comentarios ComentarioDemanda[]
+
+@@map("demandas")
+}
+
+model HistoricoStatus {
+id                     Int            @id @default(autoincrement())
+id_demanda             Int
+id_usuario_modificador Int
+status_anterior        StatusDemanda?
+status_novo            StatusDemanda
+comentario             String?        @db.Text
+criado_em              DateTime       @default(now())
+
+demanda Demanda @relation(fields: [id_demanda], references: [id], onDelete: Cascade)
+usuario Usuario @relation(fields: [id_usuario_modificador], references: [id])
+
+@@map("historico_status")
+}
+
+// REMOVIDA A DUPLICAÇÃO. MANTIDO APENAS O MODELO CORRETO.
+model CodigoLiberacao {
+id           Int         @id @default(autoincrement())
+codigo       String      @unique
+tipo_usuario TipoUsuario
+usado        Boolean     @default(false)
+criado_em    DateTime    @default(now())
+
+@@map("codigos_liberacao")
+}
+
+// Mini-chat dentro de cada demanda (morador <-> operário/admin)
+model ComentarioDemanda {
+id         Int      @id @default(autoincrement())
+id_demanda Int
+id_usuario Int
+mensagem   String   @db.Text
+criado_em  DateTime @default(now())
+
+demanda Demanda @relation(fields: [id_demanda], references: [id], onDelete: Cascade)
+usuario Usuario @relation(fields: [id_usuario], references: [id])
+
+@@map("comentarios_demanda")
+}
+
+// Notificações internas (sino no cabeçalho) - complementam o e-mail
+model Notificacao {
+id         Int      @id @default(autoincrement())
+id_usuario Int
+id_demanda Int?
+titulo     String
+mensagem   String   @db.Text
+lida       Boolean  @default(false)
+criado_em  DateTime @default(now())
+
+usuario Usuario @relation(fields: [id_usuario], references: [id], onDelete: Cascade)
+
+@@map("notificacoes")
+}
