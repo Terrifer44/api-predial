@@ -842,7 +842,24 @@ app.get('/api/relatorios/pdf', APENAS_ADMIN, async (req, res) => {
   }
 });
 
+// =====================================================
+// TRATAMENTO GLOBAL DE ERROS
+// =====================================================
+app.use((err, req, res, next) => {
+  console.error('========================================');
+  console.error('[ERRO GLOBAL]');
+  console.error('URL:', req.method, req.originalUrl);
+  console.error('Mensagem:', err?.message);
+  console.error('Nome:', err?.name);
+  console.error('Código:', err?.code);
+  console.error('Stack:', err?.stack);
+  console.error('========================================');
 
+  res.status(500).json({
+    erro: 'Erro interno do servidor',
+    mensagem: err?.message || 'Erro desconhecido'
+  });
+});
 /* ==========================================
    INICIALIZAÇÃO DO SERVIDOR
 ========================================== */
