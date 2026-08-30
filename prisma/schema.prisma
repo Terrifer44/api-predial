@@ -59,7 +59,7 @@ notificacoes       Notificacao[]
 model Demanda {
 id                 Int           @id @default(autoincrement())
 setor              String
-descricao          String
+descricao          String        @db.Text
 urgencia_morador   Urgencia
 urgencia_real      Urgencia?
 status             StatusDemanda @default(PENDENTE)
