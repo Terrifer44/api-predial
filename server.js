@@ -15,6 +15,7 @@ const {
   notificarImpedimento,
   notificarAtribuicao,
   enviarEmailRedefinicaoSenha,
+  verificarConexaoSmtp,
 } = require('./lib/email');
 const { gerarRelatorioExcel, gerarRelatorioPDF } = require('./lib/relatorios');
 
@@ -105,6 +106,12 @@ function calcularSlaPrazo(urgenciaReal) {
 }
 
 const TIPOS_USUARIO_VALIDOS = ['MORADOR', 'OPERARIO', 'ADMINISTRADOR'];
+
+// Perfis que um Administrador pode liberar pela TELA (gerar código de acesso).
+// ADMINISTRADOR fica de fora por decisão de segurança: nenhum admin deve
+// conseguir criar outro admin livremente pela interface. Um novo administrador
+// só pode ser criado diretamente no banco (seed ou query manual).
+const TIPOS_LIBERAVEIS_PELA_TELA = ['MORADOR', 'OPERARIO'];
 
 /* ==========================================
    AUTENTICAÇÃO E CADASTRO (rotas públicas)
@@ -222,7 +229,14 @@ app.post('/api/esqueci-senha', async (req, res) => {
     const urlFrontend = process.env.FRONTEND_URL || 'http://localhost:5173';
     const link = `${urlFrontend}/redefinir-senha?token=${token}`;
 
-    await enviarEmailRedefinicaoSenha(usuario, link);
+    // O resultado é só logado no servidor (nunca exposto na resposta): a
+    // resposta ao cliente continua genérica de propósito, para não revelar
+    // quais códigos de acesso existem no sistema. Se o e-mail falhar, o
+    // motivo aparece aqui no log do Render para diagnóstico.
+    const resultadoEnvio = await enviarEmailRedefinicaoSenha(usuario, link);
+    if (!resultadoEnvio.enviado) {
+      console.warn(`[ESQUECI-SENHA] E-mail de redefinição não foi entregue para o usuário ${usuario.codigo_acesso}: ${resultadoEnvio.motivo}`);
+    }
 
     return res.json(respostaGenerica);
   } catch (error) {
@@ -292,9 +306,17 @@ app.post('/api/codigos-liberacao', APENAS_ADMIN, async (req, res) => {
   // desconhecido, a rota agora RECUSA a criação em vez de deixar o Prisma
   // decidir silenciosamente (isso evita qualquer código ser criado com um
   // tipo diferente do que o administrador selecionou na tela).
-  if (!TIPOS_USUARIO_VALIDOS.includes(tipo_usuario)) {
+  //
+  // ADMINISTRADOR é bloqueado aqui de propósito (mesmo que alguém chame a
+  // API diretamente, sem passar pela tela) — ver TIPOS_LIBERAVEIS_PELA_TELA.
+  if (!TIPOS_LIBERAVEIS_PELA_TELA.includes(tipo_usuario)) {
+    if (tipo_usuario === 'ADMINISTRADOR') {
+      return res.status(400).json({
+        erro: 'Por segurança, não é possível gerar códigos de Administrador pela tela. Novos administradores só podem ser criados diretamente no banco de dados.',
+      });
+    }
     return res.status(400).json({
-      erro: `Tipo de perfil inválido: "${req.body.tipo_usuario}". Use um destes: ${TIPOS_USUARIO_VALIDOS.join(', ')}.`,
+      erro: `Tipo de perfil inválido: "${req.body.tipo_usuario}". Use um destes: ${TIPOS_LIBERAVEIS_PELA_TELA.join(', ')}.`,
     });
   }
 
@@ -316,16 +338,55 @@ app.post('/api/codigos-liberacao', APENAS_ADMIN, async (req, res) => {
 
 app.delete(['/codigos-liberacao/:id', '/api/codigos-liberacao/:id'], APENAS_ADMIN, async (req, res) => {
   const { id } = req.params;
+  const idCodigo = Number(id);
 
   try {
-    const idCodigo = Number(id);
+    const codigo = await prisma.codigoLiberacao.findUnique({ where: { id: idCodigo } });
+    if (!codigo) {
+      return res.status(404).json({ erro: 'Código de liberação não encontrado.' });
+    }
 
-    await prisma.codigoLiberacao.delete({
-      where: { id: idCodigo },
+    // BUG CONFIRMADO (corrigido aqui): excluir o código não excluía o
+    // usuário cadastrado com ele. Agora os dois saem juntos — a menos que o
+    // usuário já tenha demandas/comentários/histórico vinculado, caso em que
+    // o banco não deixa excluir (violaria integridade referencial) e o
+    // usuário é desativado em vez de excluído, para não perder esse
+    // histórico.
+    const usuarioVinculado = await prisma.usuario.findUnique({ where: { codigo_acesso: codigo.codigo } });
+
+    let statusUsuario = 'nenhum_vinculado';
+
+    if (usuarioVinculado) {
+      try {
+        await prisma.usuario.delete({ where: { id: usuarioVinculado.id } });
+        statusUsuario = 'excluido';
+      } catch (erroUsuario) {
+        if (erroUsuario.code === 'P2003') {
+          await prisma.usuario.update({
+            where: { id: usuarioVinculado.id },
+            data: { ativo: false },
+          });
+          statusUsuario = 'desativado';
+        } else {
+          throw erroUsuario;
+        }
+      }
+    }
+
+    await prisma.codigoLiberacao.delete({ where: { id: idCodigo } });
+
+    console.log(`[ADMIN] Código de liberação #${idCodigo} excluído. Usuário vinculado: ${statusUsuario}.`);
+
+    const MENSAGENS_USUARIO_VINCULADO = {
+      nenhum_vinculado: 'Código de liberação removido com sucesso.',
+      excluido: 'Código de liberação e o usuário vinculado foram removidos com sucesso.',
+      desativado: 'Código de liberação removido. O usuário vinculado já tinha demandas ou histórico no sistema, então foi desativado em vez de excluído (para não perder esse histórico).',
+    };
+
+    return res.json({
+      mensagem: MENSAGENS_USUARIO_VINCULADO[statusUsuario],
+      usuario_vinculado: statusUsuario,
     });
-
-    console.log(`[ADMIN] Código de liberação #${idCodigo} excluído.`);
-    return res.json({ mensagem: 'Código de liberação removido com sucesso.' });
   } catch (error) {
     console.error('Erro ao excluir código:', error);
     return res.status(500).json({ erro: 'Erro interno ao tentar excluir o código.' });
@@ -867,4 +928,9 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`[SERVER] Servidor backend rodando na porta ${PORT}`);
+  // Testa a conexão SMTP assim que o servidor sobe, e imprime um resultado
+  // claro no log (sucesso, "não configurado", ou o motivo exato da falha
+  // com uma dica) — em vez de só descobrir que está quebrado quando alguém
+  // usa "esqueci minha senha" e o e-mail simplesmente não chega.
+  verificarConexaoSmtp();
 });

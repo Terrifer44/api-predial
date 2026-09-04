@@ -5,6 +5,8 @@ import StatusBadge from '../components/StatusBadge';
 import { demandaService } from '../services/demandaService';
 import { montarUrlArquivo } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import Alerta from '../components/Alerta';
+import ModalShell from '../components/ModalShell';
 
 const numeroOS = (id) => `OS-${String(id).padStart(4, '0')}`;
 
@@ -86,14 +88,14 @@ export default function PainelAdmin() {
 
   const handleExcluirCodigo = async (id, usado) => {
     const confirmacao = usado
-      ? 'Este código já foi utilizado. Tem certeza que deseja excluí-lo?'
+      ? 'Este código já foi utilizado. Se houver um usuário cadastrado com ele, o usuário também será excluído (ou desativado, se já tiver demandas/histórico). Tem certeza que deseja excluir?'
       : 'Tem certeza que deseja excluir este código de liberação?';
 
     if (!window.confirm(confirmacao)) return;
 
     try {
-      await demandaService.excluirCodigoLiberacao(id);
-      exibirMensagem('Código excluído com sucesso.', 'sucesso');
+      const resultado = await demandaService.excluirCodigoLiberacao(id);
+      exibirMensagem(resultado?.mensagem || 'Código excluído com sucesso.', 'sucesso');
       carregarDados();
     } catch (err) {
       console.error(err);
@@ -179,22 +181,9 @@ export default function PainelAdmin() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-10 space-y-8">
 
         {mensagem.texto && (
-          <div
-            className={`p-3.5 rounded-md border text-sm font-medium flex items-center justify-between transition-all ${
-              mensagem.tipo === 'erro'
-                ? 'bg-signal/10 border-signal/30 text-signal'
-                : 'bg-moss/10 border-moss/30 text-moss'
-            }`}
-            role="alert"
-          >
-            <span>{mensagem.texto}</span>
-            <button
-              onClick={() => setMensagem({ texto: '', tipo: '' })}
-              className="text-xs opacity-70 hover:opacity-100"
-            >
-              ✕
-            </button>
-          </div>
+          <Alerta tipo={mensagem.tipo || 'sucesso'} onFechar={() => setMensagem({ texto: '', tipo: '' })}>
+            {mensagem.texto}
+          </Alerta>
         )}
 
         {/* CABEÇALHO */}
@@ -234,7 +223,8 @@ export default function PainelAdmin() {
             <div>
               <h3 className="text-sm font-semibold text-ink">Gerar códigos de acesso</h3>
               <p className="text-muted text-xs mt-0.5">
-                Crie acessos para novos moradores, operários ou administradores.
+                Crie acessos para novos moradores ou operários. Por segurança, novos
+                administradores só podem ser criados diretamente no banco de dados.
               </p>
             </div>
 
@@ -255,7 +245,6 @@ export default function PainelAdmin() {
                 >
                   <option value="MORADOR">Morador</option>
                   <option value="OPERARIO">Operário</option>
-                  <option value="ADMINISTRADOR">Administrador (síndico/gestor)</option>
                 </select>
 
                 <button
@@ -500,10 +489,7 @@ export default function PainelAdmin() {
 
         {/* MODAL DE TRIAGEM */}
         {demandaSelecionada && (
-          <div className="fixed inset-0 z-50 bg-graphite/85 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-panel border border-line rounded-lg w-full max-w-md shadow-2xl overflow-hidden">
-              <div className="h-[3px] bg-blueprint" />
-
+          <ModalShell onClose={() => setDemandaSelecionada(null)}>
               <div className="p-6 space-y-5">
                 <div>
                   <p className="text-[11px] font-mono text-faint uppercase tracking-wider mb-1">
@@ -580,8 +566,7 @@ export default function PainelAdmin() {
                   </div>
                 </form>
               </div>
-            </div>
-          </div>
+          </ModalShell>
         )}
 
       </main>

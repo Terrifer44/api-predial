@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { demandaService } from '../services/demandaService';
 import FormField from '../components/FormField';
+import Alerta from '../components/Alerta';
 
 export default function RedefinirSenha() {
   const [searchParams] = useSearchParams();
@@ -65,28 +66,14 @@ export default function RedefinirSenha() {
           <div className="p-6 sm:p-7 space-y-5">
 
             {!token && (
-              <div className="bg-amber/10 border border-amber/30 text-amber text-xs p-3 rounded-md font-medium flex items-start gap-2" role="alert">
-                <span className="font-mono font-bold shrink-0">!</span>
-                <span className="flex-1">
-                  Link inválido ou incompleto. Solicite novamente em{' '}
-                  <Link to="/esqueci-senha" className="underline">Esqueci minha senha</Link>.
-                </span>
-              </div>
+              <Alerta tipo="aviso">
+                Link inválido ou incompleto. Solicite novamente em{' '}
+                <Link to="/esqueci-senha" className="underline">Esqueci minha senha</Link>.
+              </Alerta>
             )}
 
-            {erro && (
-              <div className="bg-signal/10 border border-signal/30 text-signal text-xs p-3 rounded-md font-medium flex items-start gap-2" role="alert">
-                <span className="font-mono font-bold shrink-0">!</span>
-                <span className="flex-1">{erro}</span>
-              </div>
-            )}
-
-            {sucesso && (
-              <div className="bg-moss/10 border border-moss/30 text-moss text-xs p-3 rounded-md font-medium flex items-start gap-2" role="status">
-                <span className="font-mono font-bold shrink-0">✓</span>
-                <span className="flex-1">{sucesso}</span>
-              </div>
-            )}
+            {erro && <Alerta tipo="erro">{erro}</Alerta>}
+            {sucesso && <Alerta tipo="sucesso">{sucesso}</Alerta>}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <FormField

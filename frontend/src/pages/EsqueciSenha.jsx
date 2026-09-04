@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { demandaService } from '../services/demandaService';
 import FormField from '../components/FormField';
+import Alerta from '../components/Alerta';
 
 export default function EsqueciSenha() {
   const [codigoAcesso, setCodigoAcesso] = useState('');
@@ -47,20 +48,12 @@ export default function EsqueciSenha() {
               Informe seu código de acesso. Se houver um e-mail cadastrado, enviaremos um link para redefinir sua senha.
             </p>
 
-            {erro && (
-              <div className="bg-signal/10 border border-signal/30 text-signal text-xs p-3 rounded-md font-medium flex items-start gap-2" role="alert">
-                <span className="font-mono font-bold shrink-0">!</span>
-                <span className="flex-1">{erro}</span>
-              </div>
-            )}
+            {erro && <Alerta tipo="erro">{erro}</Alerta>}
 
             {enviado ? (
-              <div className="bg-moss/10 border border-moss/30 text-moss text-xs p-3.5 rounded-md font-medium flex items-start gap-2" role="status">
-                <span className="font-mono font-bold shrink-0">✓</span>
-                <span className="flex-1">
-                  Se o código existir e tiver um e-mail cadastrado, um link de redefinição foi enviado. Verifique sua caixa de entrada.
-                </span>
-              </div>
+              <Alerta tipo="sucesso">
+                Se o código existir e tiver um e-mail cadastrado, um link de redefinição foi enviado. Verifique sua caixa de entrada.
+              </Alerta>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <FormField

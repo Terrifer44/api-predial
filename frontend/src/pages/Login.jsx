@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import Alerta from '../components/Alerta';
 
 export default function Login() {
   const [codigoAcesso, setCodigoAcesso] = useState('');
@@ -61,12 +62,7 @@ export default function Login() {
               <p className="text-xs text-muted mt-0.5">Informe seu código de acesso e senha.</p>
             </div>
 
-            {erro && (
-              <div className="bg-signal/10 border border-signal/30 text-signal text-xs p-3 rounded-md font-medium flex items-start gap-2" role="alert">
-                <span className="font-mono font-bold shrink-0">!</span>
-                <span className="flex-1">{erro}</span>
-              </div>
-            )}
+            {erro && <Alerta tipo="erro">{erro}</Alerta>}
 
             <form onSubmit={handleSubmit} className="space-y-4">
 

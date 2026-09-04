@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { demandaService } from '../services/demandaService';
 import { useAuth } from '../hooks/useAuth';
+import ModalShell from './ModalShell';
 
 export default function ModalChat({ demanda, onClose }) {
   const { user } = useAuth();
@@ -57,10 +58,7 @@ export default function ModalChat({ demanda, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-graphite/85 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-panel border border-line rounded-lg w-full max-w-md shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
-
-        <div className="h-[3px] bg-blueprint shrink-0" />
+    <ModalShell onClose={onClose} className="flex flex-col max-h-[85vh]">
 
         <div className="flex items-center justify-between p-5 border-b border-line shrink-0">
           <div>
@@ -138,7 +136,6 @@ export default function ModalChat({ demanda, onClose }) {
             Enviar
           </button>
         </form>
-      </div>
-    </div>
+    </ModalShell>
   );
 }

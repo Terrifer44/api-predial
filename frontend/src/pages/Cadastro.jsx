@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { demandaService } from '../services/demandaService';
 import FormField from '../components/FormField';
+import Alerta from '../components/Alerta';
 
 export default function Cadastro() {
   const navigate = useNavigate();
@@ -81,19 +82,8 @@ export default function Cadastro() {
               Insira o código fornecido pela administração para criar sua conta.
             </p>
 
-            {erro && (
-              <div className="bg-signal/10 border border-signal/30 text-signal text-xs p-3 rounded-md font-medium flex items-start gap-2" role="alert">
-                <span className="font-mono font-bold shrink-0">!</span>
-                <span className="flex-1">{erro}</span>
-              </div>
-            )}
-
-            {sucesso && (
-              <div className="bg-moss/10 border border-moss/30 text-moss text-xs p-3 rounded-md font-medium flex items-start gap-2" role="status">
-                <span className="font-mono font-bold shrink-0">✓</span>
-                <span className="flex-1">{sucesso}</span>
-              </div>
-            )}
+            {erro && <Alerta tipo="erro">{erro}</Alerta>}
+            {sucesso && <Alerta tipo="sucesso">{sucesso}</Alerta>}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <FormField

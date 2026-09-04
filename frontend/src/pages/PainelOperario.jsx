@@ -7,6 +7,9 @@ import SlaTag, { slaAtrasado } from '../components/SlaTag';
 import { demandaService } from '../services/demandaService';
 import { montarUrlArquivo } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import Alerta from '../components/Alerta';
+import ModalShell from '../components/ModalShell';
+import EmptyState from '../components/EmptyState';
 
 const numeroOS = (id) => `OS-${String(id).padStart(4, '0')}`;
 
@@ -89,33 +92,19 @@ export default function PainelOperario() {
         </div>
 
         {mensagem.texto && (
-          <div
-            className={`p-3.5 rounded-md border text-sm font-medium flex items-center justify-between transition-all ${
-              mensagem.tipo === 'erro'
-                ? 'bg-signal/10 border-signal/30 text-signal'
-                : 'bg-moss/10 border-moss/30 text-moss'
-            }`}
-            role="alert"
-          >
-            <span>{mensagem.texto}</span>
-            <button
-              onClick={() => setMensagem({ texto: '', tipo: '' })}
-              className="text-xs opacity-70 hover:opacity-100 cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
+          <Alerta tipo={mensagem.tipo || 'sucesso'} onFechar={() => setMensagem({ texto: '', tipo: '' })}>
+            {mensagem.texto}
+          </Alerta>
         )}
 
         {loading ? (
           <Loading mensagem="Carregando suas tarefas..." />
         ) : minhasTarefas.length === 0 ? (
-          <div className="bg-panel border border-dashed border-line rounded-lg p-12 text-center">
-            <p className="font-mono text-xs text-faint uppercase tracking-wider mb-2">Fila vazia</p>
+          <EmptyState eyebrow="Fila vazia">
             <p className="text-ink text-sm font-medium">
               Você não possui nenhuma tarefa pendente no momento.
             </p>
-          </div>
+          </EmptyState>
         ) : (
           <div className="space-y-3.5">
             {minhasTarefas.map((tarefa) => {
@@ -203,10 +192,7 @@ export default function PainelOperario() {
 
         {/* MODAL DE ATUALIZAÇÃO DE STATUS */}
         {tarefaSelecionada && (
-          <div className="fixed inset-0 z-50 bg-graphite/85 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-panel border border-line rounded-lg w-full max-w-md shadow-2xl overflow-hidden">
-              <div className="h-[3px] bg-blueprint" />
-
+          <ModalShell onClose={() => setTarefaSelecionada(null)}>
               <div className="p-6 space-y-5">
                 <div>
                   <p className="text-[11px] font-mono text-faint uppercase tracking-wider mb-1">
@@ -265,8 +251,7 @@ export default function PainelOperario() {
                   </div>
                 </form>
               </div>
-            </div>
-          </div>
+          </ModalShell>
         )}
 
       </main>

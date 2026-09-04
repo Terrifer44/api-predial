@@ -3,6 +3,7 @@ import Header from '../components/Header';
 import { demandaService } from '../services/demandaService';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import Alerta from '../components/Alerta';
 
 const selectClasse =
   'w-full px-3.5 py-2.5 rounded-md bg-panel-2 border border-line text-ink focus:outline-none focus:ring-1 focus:ring-blueprint-bright focus:border-blueprint-bright text-sm transition-colors disabled:opacity-50 cursor-pointer';
@@ -109,12 +110,7 @@ export default function NovaDemanda() {
           </button>
         </div>
 
-        {erro && (
-          <div className="bg-signal/10 border border-signal/30 text-signal text-sm p-3.5 rounded-md font-medium flex items-start gap-2.5" role="alert">
-            <span className="font-mono font-bold shrink-0">!</span>
-            <span className="flex-1">{erro}</span>
-          </div>
-        )}
+        {erro && <Alerta tipo="erro">{erro}</Alerta>}
 
         <form onSubmit={handleSubmit} className="bg-panel border border-line rounded-lg overflow-hidden">
           <div className="h-[3px] bg-blueprint" />

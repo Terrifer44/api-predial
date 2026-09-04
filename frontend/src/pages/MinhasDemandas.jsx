@@ -8,6 +8,8 @@ import { demandaService } from '../services/demandaService';
 import { montarUrlArquivo } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { Link, useNavigate } from 'react-router-dom';
+import Alerta from '../components/Alerta';
+import EmptyState from '../components/EmptyState';
 
 const numeroOS = (id) => `OS-${String(id).padStart(4, '0')}`;
 
@@ -65,19 +67,12 @@ export default function MinhasDemandas() {
           </Link>
         </div>
 
-        {erro && (
-          <div className="bg-signal/10 border border-signal/30 text-signal text-sm p-3.5 rounded-md font-medium flex items-center gap-2.5" role="alert">
-            <span className="font-mono font-bold">!</span>
-            <span>{erro}</span>
-          </div>
-        )}
+        {erro && <Alerta tipo="erro">{erro}</Alerta>}
 
         {loading ? (
           <Loading mensagem="Carregando suas solicitações..." />
         ) : demandas.length === 0 ? (
-          <div className="bg-panel border border-dashed border-line rounded-lg p-12 text-center space-y-3">
-            <p className="font-mono text-xs text-faint uppercase tracking-wider">Nenhum registro</p>
-            <h3 className="text-base font-semibold text-ink">Nenhuma solicitação encontrada</h3>
+          <EmptyState eyebrow="Nenhum registro" titulo="Nenhuma solicitação encontrada">
             <p className="text-muted text-sm max-w-md mx-auto">
               Você ainda não fez nenhuma solicitação de manutenção. Se precisar de reparos, abra um novo chamado.
             </p>
@@ -89,7 +84,7 @@ export default function MinhasDemandas() {
                 Criar primeira demanda
               </Link>
             </div>
-          </div>
+          </EmptyState>
         ) : (
           <div className="space-y-3.5">
             {demandas.map((demanda) => {

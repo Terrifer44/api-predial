@@ -177,3 +177,84 @@ redeploy.
 automaticamente para salvar em disco local (`/uploads`), exatamente como antes — útil
 para testar localmente sem precisar criar uma conta. Só não use esse modo em produção
 num serviço com disco efêmero.
+
+---
+
+## 🔒 Restrição: código de Administrador só pelo banco
+
+Por decisão de segurança, a tela "Gerar códigos de acesso" (Painel Admin) não permite
+mais escolher o perfil **Administrador** — só Morador ou Operário aparecem no seletor.
+
+- **Backend** (`server.js`): `POST /api/codigos-liberacao` agora recusa (erro 400)
+  qualquer tentativa de gerar um código com `tipo_usuario: "ADMINISTRADOR"`, mesmo que a
+  chamada venha direto da API (Postman/curl) e não da tela — a restrição não depende do
+  frontend esconder a opção.
+- **Frontend** (`PainelAdmin.jsx`): a opção "Administrador (síndico/gestor)" foi removida
+  do `<select>`.
+- Um novo administrador continua possível de criar, só que **diretamente no banco**
+  (edite `prisma/seed.js` e rode `node prisma/seed.js`, ou insira manualmente com
+  `senha_hash` gerado via `bcryptjs`).
+
+## 📧 Diagnóstico de e-mail (SMTP) na inicialização
+
+Antes, se o SMTP estivesse mal configurado em produção (ex: Render), o único jeito de
+descobrir era esperar alguém pedir "esqueci minha senha" e vasculhar os logs. Agora
+(`lib/email.js` + `server.js`):
+
+- Ao subir, o servidor testa a conexão SMTP (`transporter.verify()`) e imprime logo no
+  log: sucesso, "SMTP não configurado", ou o motivo exato da falha — com uma dica
+  específica quando o erro parece ser de autenticação (ex: Gmail sem "Senha de app") ou
+  de conexão (host/porta/firewall).
+- Toda tentativa de envio (inclusive redefinição de senha) agora loga claramente se foi
+  entregue ou não, e por quê — sem mudar a resposta genérica que o usuário final recebe
+  (continua sem revelar quais códigos de acesso existem no sistema).
+- **Isso não substitui configurar o SMTP de verdade**: se as variáveis `SMTP_HOST` /
+  `SMTP_USER` / `SMTP_PASS` no Render estiverem vazias ou erradas, o "esqueci minha
+  senha" continua apenas simulando o e-mail no console — mas agora fica óbvio no log
+  qual é exatamente o problema, para corrigir com o Gmail (ou outro provedor).
+
+## 🗑️ Bug: excluir código de liberação não excluía o usuário
+
+Confirmado e corrigido. `DELETE /api/codigos-liberacao/:id` agora também localiza o
+usuário cadastrado com aquele código (`usuario.codigo_acesso === codigo.codigo`) e:
+
+- Exclui o usuário junto, se ele nunca teve nenhuma demanda/comentário/histórico
+  vinculado (nesse caso o banco permite excluir sem quebrar nada).
+- Se o usuário já tiver histórico (o banco recusa a exclusão por integridade
+  referencial — erro `P2003`), ele é **desativado** em vez de excluído, para não perder
+  esse histórico. O admin recebe uma mensagem explicando qual dos dois aconteceu.
+
+Não existe hoje uma rota para excluir um usuário diretamente (só bloquear/desbloquear
+em `PUT /api/usuarios/:id/status`) — então o outro sentido ("excluir usuário exclui o
+código") não se aplica ainda; se um dia isso for adicionado, o mesmo cuidado (excluir
+ou desativar dependendo do histórico) deve valer.
+
+## 🎨 Frontend: componentes compartilhados + limpeza
+
+Três padrões de UI que apareciam copiados em várias páginas (com pequenas diferenças
+entre cada cópia) viraram componentes únicos em `frontend/src/components/`:
+
+- **`Alerta.jsx`** — a faixa colorida de erro/sucesso/aviso, que estava reimplementada
+  em 8 arquivos com pequenas variações (algumas com botão de fechar, outras sem;
+  tamanhos de texto e espaçamento levemente diferentes). Agora é um componente só,
+  com um visual único e mais polido (ícone + botão de fechar disponível em todo lugar).
+- **`ModalShell.jsx`** — a moldura de modal (fundo escurecido + painel + faixa azul no
+  topo), que estava copiada em `ModalChat`, `PainelAdmin` e `PainelOperario`. Ganhou de
+  brinde um comportamento que não existia antes: clicar fora do painel fecha o modal.
+- **`EmptyState.jsx`** — o cartão tracejado de "lista vazia", usado em
+  `MinhasDemandas` e `PainelOperario`.
+
+Aplicados nas 8 páginas/componentes que tinham esses padrões:
+`Login`, `Cadastro`, `EsqueciSenha`, `RedefinirSenha`, `NovaDemanda`, `MinhasDemandas`,
+`PainelAdmin`, `PainelOperario`, `ModalChat`.
+
+**Limpeza de código morto encontrada nesse processo:**
+- `components/ModalHistorico.jsx` — removido. Usava classes CSS (`.modal-overlay`,
+  `.btn-close`, `.timeline-item` etc.) que não existiam em nenhum lugar do projeto
+  (sobra de uma versão anterior do design) e não era importado por nenhuma página —
+  se algum dia fosse chamado, renderizaria completamente sem estilo.
+- `routes/AppRoutes.jsx` — removido. Era uma definição de rotas duplicada e não usada
+  (o app inteiro roda a partir de `App.jsx`); tinha inclusive caminhos desatualizados
+  (`/admin`/`/operario` em vez de `/painel-admin`/`/painel-operario`) que não batiam
+  com o resto do app — se algum dia alguém trocasse `main.jsx` para usar esse arquivo
+  por engano, o login quebraria.
