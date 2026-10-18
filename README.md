@@ -6,7 +6,7 @@
 
 Projeto Integrador desenvolvido no **SENAI**, com fluxo completo de abertura, triagem, acompanhamento e conclusão de solicitações de manutenção.
 
-[**Acessar a aplicação**](https://api-predial.vercel.app) · [**Código-fonte**](https://github.com/Terrifer44/api-predial) · [**Melhorias implementadas**](./MELHORIAS.md)
+[**Acessar a aplicação**](https://api-predial.vercel.app) · [**Código-fonte**](https://github.com/joaogabrielgois/api-predial) · [**Melhorias implementadas**](./MELHORIAS.md)
 
 </div>
 
@@ -71,7 +71,7 @@ api-predial/
 ### 1. Clonar e instalar as dependências
 
 ```bash
-git clone https://github.com/Terrifer44/api-predial.git
+git clone https://github.com/joaogabrielgois/api-predial.git
 cd api-predial
 npm install
 cd frontend
