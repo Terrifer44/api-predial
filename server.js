@@ -31,43 +31,89 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 /* ==========================================
    AUTENTICAÇÃO / AUTORIZAÇÃO
-   O frontend envia o cabeçalho "x-usuario-id" (definido em
-   services/api.js a partir do usuário salvo no login) em toda
-   requisição autenticada. Aqui verificamos que esse ID realmente
-   existe, está ativo, e tem o perfil (tipo_usuario) necessário
-   para a rota — em vez de simplesmente confiar em valores que o
-   próprio cliente manda no corpo da requisição (id_admin,
-   id_usuario etc.), como acontecia antes.
-
-   Isto NÃO substitui uma sessão/token real (o ID ainda pode ser
-   adivinhado por alguém tecnicamente capaz), mas impede que a API
-   aceite qualquer chamada sem que corresponda a um usuário
-   existente e com o papel correto — o que antes não era checado
-   em nenhum lugar.
+   Tokens com HMAC SHA-256; nunca confie em IDs informados
+   pelo cliente para autenticar o usuário.
+   Configure AUTH_SECRET (32+ caracteres aleatórios) antes
+   de iniciar o servidor, inclusive em desenvolvimento.
 ========================================== */
 
-async function identificarUsuario(req, res, next) {
-  const idHeader = req.headers['x-usuario-id'];
-  const id = Number(idHeader);
+const AUTH_SECRET = process.env.AUTH_SECRET;
+if (!AUTH_SECRET || AUTH_SECRET.length < 32) {
+  throw new Error('[SEGURANÇA] Configure AUTH_SECRET com pelo menos 32 caracteres aleatórios.');
+}
 
-  if (!idHeader || !id) {
-    req.usuarioAutenticado = null;
-    return next();
-  }
+const DURACAO_SESSAO_MS = 8 * 60 * 60 * 1000;
+
+function assinaturaToken(payload) {
+  return crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('base64url');
+}
+
+function revisaoCredencial(usuario) {
+  // Invalida tokens antigos após qualquer troca de senha.
+  return crypto.createHash('sha256').update(usuario.senha_hash).digest('hex').slice(0, 24);
+}
+
+function criarToken(usuario) {
+  const dados = {
+    uid: usuario.id,
+    exp: Date.now() + DURACAO_SESSAO_MS,
+    revisao: revisaoCredencial(usuario),
+  };
+  const payload = Buffer.from(JSON.stringify(dados), 'utf8').toString('base64url');
+  return `${payload}.${assinaturaToken(payload)}`;
+}
+
+function validarToken(token) {
+  if (typeof token !== 'string' || token.length > 4096) return null;
+  const partes = token.split('.');
+  if (partes.length !== 2) return null;
+
+  const [payload, assinaturaRecebida] = partes;
+  if (!/^[A-Za-z0-9_-]+$/.test(payload) || !/^[A-Za-z0-9_-]+$/.test(assinaturaRecebida)) return null;
+
+  const assinaturaEsperada = Buffer.from(assinaturaToken(payload), 'base64url');
+  const assinaturaInformada = Buffer.from(assinaturaRecebida, 'base64url');
+  if (
+    assinaturaEsperada.length !== assinaturaInformada.length ||
+    !crypto.timingSafeEqual(assinaturaEsperada, assinaturaInformada)
+  ) return null;
 
   try {
-    const usuario = await prisma.usuario.findUnique({ where: { id } });
-    req.usuarioAutenticado = usuario && usuario.ativo ? usuario : null;
-  } catch (error) {
-    req.usuarioAutenticado = null;
+    const dados = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (
+      !Number.isSafeInteger(dados.uid) ||
+      dados.uid <= 0 ||
+      typeof dados.exp !== 'number' ||
+      dados.exp <= Date.now() ||
+      dados.exp > Date.now() + DURACAO_SESSAO_MS ||
+      typeof dados.revisao !== 'string'
+    ) return null;
+    return dados;
+  } catch {
+    return null;
   }
+}
 
+async function identificarUsuario(req, res, next) {
+  req.usuarioAutenticado = null;
+  const autorizacao = req.get('authorization') || '';
+  const partes = /^Bearer (\S+)$/.exec(autorizacao);
+  const sessao = partes ? validarToken(partes[1]) : null;
+  if (!sessao) return next();
+
+  try {
+    const usuario = await prisma.usuario.findUnique({ where: { id: sessao.uid } });
+    if (usuario && usuario.ativo && revisaoCredencial(usuario) === sessao.revisao) {
+      req.usuarioAutenticado = usuario;
+    }
+  } catch (error) {
+    console.error('[AUTENTICAÇÃO] Não foi possível validar a sessão:', error);
+  }
   next();
 }
 
 app.use(identificarUsuario);
 
-// Exige que exista um usuário autenticado (qualquer perfil ativo).
 function exigirAutenticacao(req, res, next) {
   if (!req.usuarioAutenticado) {
     return res.status(401).json({ erro: 'Não autenticado. Faça login novamente.' });
@@ -75,7 +121,6 @@ function exigirAutenticacao(req, res, next) {
   next();
 }
 
-// Exige autenticação + que o perfil do usuário esteja entre os permitidos.
 function exigirPerfil(...perfisPermitidos) {
   return (req, res, next) => {
     if (!req.usuarioAutenticado) {
@@ -89,6 +134,36 @@ function exigirPerfil(...perfisPermitidos) {
 }
 
 const APENAS_ADMIN = exigirPerfil('ADMINISTRADOR');
+
+// Revalida no backend a relação do usuário com a demanda consultada.
+async function exigirAcessoDemanda(req, res, next) {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) {
+    return res.status(400).json({ erro: 'Identificador de demanda inválido.' });
+  }
+
+  try {
+    const demanda = await prisma.demanda.findUnique({
+      where: { id },
+      select: { id: true, id_morador: true, id_operario: true },
+    });
+    if (!demanda) return res.status(404).json({ erro: 'Demanda não encontrada.' });
+
+    const usuario = req.usuarioAutenticado;
+    const podeAcessar =
+      usuario.tipo_usuario === 'ADMINISTRADOR' ||
+      demanda.id_morador === usuario.id ||
+      demanda.id_operario === usuario.id;
+
+    if (!podeAcessar) {
+      return res.status(403).json({ erro: 'Você não tem acesso a esta demanda.' });
+    }
+    next();
+  } catch (error) {
+    console.error('[AUTORIZAÇÃO] Falha ao verificar acesso à demanda:', error);
+    return res.status(500).json({ erro: 'Erro ao verificar acesso à demanda.' });
+  }
+}
 
 /* ==========================================
    PRAZOS DE SLA POR URGÊNCIA (em horas)
@@ -119,6 +194,9 @@ const TIPOS_LIBERAVEIS_PELA_TELA = ['MORADOR', 'OPERARIO'];
 
 app.post(['/login', '/api/login'], async (req, res) => {
   const { codigo_acesso, senha } = req.body;
+  if (typeof codigo_acesso !== 'string' || typeof senha !== 'string' || !codigo_acesso.trim() || !senha) {
+    return res.status(400).json({ erro: 'Código de acesso e senha são obrigatórios.' });
+  }
 
   try {
     const usuario = await prisma.usuario.findUnique({
@@ -135,6 +213,7 @@ app.post(['/login', '/api/login'], async (req, res) => {
     }
 
     return res.json({
+      token: criarToken(usuario),
       usuario_id: usuario.id,
       nome: usuario.nome,
       codigo_acesso: usuario.codigo_acesso,
@@ -693,7 +772,7 @@ app.delete('/api/demandas/:id', APENAS_ADMIN, async (req, res) => {
    HISTÓRICO (qualquer usuário autenticado)
 ========================================== */
 
-app.get('/api/demandas/:id/historico', exigirAutenticacao, async (req, res) => {
+app.get('/api/demandas/:id/historico', exigirAutenticacao, exigirAcessoDemanda, async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -720,7 +799,7 @@ app.get('/api/demandas/:id/historico', exigirAutenticacao, async (req, res) => {
    acesso à demanda em questão).
 ========================================== */
 
-app.get('/api/demandas/:id/comentarios', exigirAutenticacao, async (req, res) => {
+app.get('/api/demandas/:id/comentarios', exigirAutenticacao, exigirAcessoDemanda, async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -738,7 +817,7 @@ app.get('/api/demandas/:id/comentarios', exigirAutenticacao, async (req, res) =>
   }
 });
 
-app.post('/api/demandas/:id/comentarios', exigirAutenticacao, async (req, res) => {
+app.post('/api/demandas/:id/comentarios', exigirAutenticacao, exigirAcessoDemanda, async (req, res) => {
   const { id } = req.params;
   const { mensagem } = req.body;
   const id_usuario = req.usuarioAutenticado.id;
