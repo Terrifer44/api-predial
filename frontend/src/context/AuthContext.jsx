@@ -10,7 +10,7 @@ export function AuthProvider({ children }) {
   // Carrega o usuário salvo ao abrir/recarregar a página
   useEffect(() => {
     const usuarioSalvo = localStorage.getItem('usuario');
-    if (usuarioSalvo) {
+    if (usuarioSalvo && localStorage.getItem('token')) {
       try {
         setUser(JSON.parse(usuarioSalvo));
       } catch (e) {
@@ -24,7 +24,9 @@ export function AuthProvider({ children }) {
     // 1. Faz o login no backend
     const dadosUsuario = await authService.login(codigo_acesso, senha);
 
-    // 2. Salva no estado e no localStorage
+    // 2. Token retornado pelo servidor e dados públicos do usuário.
+    if (!dadosUsuario?.token) throw new Error('A API não retornou uma sessão válida.');
+    localStorage.setItem('token', dadosUsuario.token);
     setUser(dadosUsuario);
     localStorage.setItem('usuario', JSON.stringify(dadosUsuario));
 
@@ -35,6 +37,8 @@ export function AuthProvider({ children }) {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('usuario');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
   };
 
   return (
