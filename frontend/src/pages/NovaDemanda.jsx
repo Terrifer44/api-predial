@@ -91,7 +91,7 @@ export default function NovaDemanda() {
     <div className="min-h-screen bg-graphite text-ink flex flex-col">
       <Header />
 
-      <main className="flex-1 max-w-2xl w-full mx-auto px-4 sm:px-6 py-10 space-y-6">
+      <main id="conteudo" className="flex-1 max-w-2xl w-full mx-auto px-4 sm:px-6 py-10 space-y-6">
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-line pb-6">
           <div>

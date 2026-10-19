@@ -22,9 +22,9 @@ export default function NotificacoesBell() {
   }, [idUsuario]);
 
   useEffect(() => {
-    carregarNotificacoes();
+    const inicial = setTimeout(carregarNotificacoes, 0);
     const intervalo = setInterval(carregarNotificacoes, 30000);
-    return () => clearInterval(intervalo);
+    return () => { clearTimeout(inicial); clearInterval(intervalo); };
   }, [carregarNotificacoes]);
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function NotificacoesBell() {
         type="button"
         onClick={() => setAberto((v) => !v)}
         className="relative w-8 h-8 flex items-center justify-center text-muted hover:text-ink hover:bg-panel-2 rounded-md transition-colors cursor-pointer"
-        aria-label="Notificações"
+        aria-label="Notificações" aria-expanded={aberto}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
@@ -82,7 +82,7 @@ export default function NotificacoesBell() {
       </button>
 
       {aberto && (
-        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-panel border border-line rounded-lg shadow-2xl z-50 custom-scrollbar">
+        <div className="fixed left-4 right-4 top-20 sm:absolute sm:left-auto sm:right-0 sm:top-auto mt-2 w-auto sm:w-80 max-h-96 overflow-y-auto bg-panel border border-line rounded-lg shadow-2xl z-50 custom-scrollbar">
           <div className="flex items-center justify-between p-3.5 border-b border-line">
             <h4 className="text-xs font-mono font-medium text-muted uppercase tracking-wider">Notificações</h4>
             {naoLidas > 0 && (

@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Header from '../components/Header';
+import DetalhesDemanda from '../components/DetalhesDemanda';
 import Loading from '../components/Loading';
 import ModalChat from '../components/ModalChat';
 import StatusBadge from '../components/StatusBadge';
-import SlaTag, { slaAtrasado } from '../components/SlaTag';
+import SlaTag from '../components/SlaTag';
+import { slaAtrasado } from '../utils/sla';
 import { demandaService } from '../services/demandaService';
-import { montarUrlArquivo } from '../services/api';
+import FotoDemanda from '../components/FotoDemanda';
 import { useAuth } from '../hooks/useAuth';
 import Alerta from '../components/Alerta';
 import ModalShell from '../components/ModalShell';
@@ -21,6 +23,7 @@ const URGENCIA_COR = {
 
 export default function PainelOperario() {
   const { user } = useAuth();
+  const [detalhes,setDetalhes] = useState(null);
   const [minhasTarefas, setMinhasTarefas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [mensagem, setMensagem] = useState({ texto: '', tipo: '' });
@@ -30,12 +33,12 @@ export default function PainelOperario() {
   const [novoStatus, setNovoStatus] = useState('EM_ANDAMENTO');
   const [observacao, setObservacao] = useState('');
 
-  const exibirMensagem = (texto, tipo = 'sucesso') => {
+  const exibirMensagem = useCallback((texto, tipo = 'sucesso') => {
     setMensagem({ texto, tipo });
     setTimeout(() => setMensagem({ texto: '', tipo: '' }), 4000);
-  };
+  }, []);
 
-  const carregarTarefas = async () => {
+  const carregarTarefas = useCallback(async () => {
     const idOperario = user?.usuario_id || user?.id;
     if (!idOperario) return;
 
@@ -49,11 +52,12 @@ export default function PainelOperario() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [exibirMensagem, user]);
 
   useEffect(() => {
-    carregarTarefas();
-  }, [user]);
+    const inicial = setTimeout(carregarTarefas, 0);
+    return () => clearTimeout(inicial);
+  }, [carregarTarefas]);
 
   const handleAtualizarStatus = async (e) => {
     e.preventDefault();
@@ -79,7 +83,7 @@ export default function PainelOperario() {
     <div className="min-h-screen bg-graphite text-ink flex flex-col">
       <Header />
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-10 space-y-6">
+      <main id="conteudo" className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-10 space-y-6">
 
         <div className="border-b border-line pb-6">
           <p className="text-[11px] font-mono text-faint uppercase tracking-wider mb-1.5">Painel do operário</p>
@@ -139,13 +143,7 @@ export default function PainelOperario() {
                       </p>
 
                       {tarefa.foto_url && (
-                        <a href={montarUrlArquivo(tarefa.foto_url)} target="_blank" rel="noopener noreferrer" className="block">
-                          <img
-                            src={montarUrlArquivo(tarefa.foto_url)}
-                            alt={`Foto do problema - ${numeroOS(tarefa.id)}`}
-                            className="w-full max-h-48 object-cover rounded-md border border-line hover:opacity-90 transition-opacity"
-                          />
-                        </a>
+                        <FotoDemanda demanda={tarefa}  />
                       )}
 
                       <p className="text-sm text-ink/90 leading-relaxed bg-panel-2/60 p-3 rounded-md border border-line-soft">
@@ -160,6 +158,7 @@ export default function PainelOperario() {
                     </div>
 
                     <div className="flex flex-row sm:flex-col items-stretch gap-2 shrink-0">
+                      <button type="button" className="text-blueprint text-sm px-3 py-2" onClick={()=>setDetalhes(tarefa)}>Ver histórico</button>
                       <button
                         type="button"
                         onClick={() => setTarefaChat(tarefa)}
@@ -256,6 +255,7 @@ export default function PainelOperario() {
 
       </main>
 
+      {detalhes && <DetalhesDemanda demanda={detalhes} onClose={()=>setDetalhes(null)}/>}
       {tarefaChat && (
         <ModalChat demanda={tarefaChat} onClose={() => setTarefaChat(null)} />
       )}

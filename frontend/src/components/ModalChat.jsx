@@ -10,6 +10,7 @@ export default function ModalChat({ demanda, onClose }) {
   const [carregando, setCarregando] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
+  const [encerrado, setEncerrado] = useState(demanda.status === 'CONCLUIDA');
   const fimListaRef = useRef(null);
 
   const idUsuarioAtual = user?.usuario_id || user?.id;
@@ -17,7 +18,8 @@ export default function ModalChat({ demanda, onClose }) {
   const carregarMensagens = useCallback(async () => {
     try {
       const dados = await demandaService.buscarComentarios(demanda.id);
-      setMensagens(Array.isArray(dados) ? dados : []);
+      setMensagens(dados.mensagens);
+      setEncerrado(dados.status === 'CONCLUIDA');
     } catch (err) {
       console.error('Erro ao carregar mensagens:', err);
       setErro('Não foi possível carregar as mensagens.');
@@ -27,9 +29,9 @@ export default function ModalChat({ demanda, onClose }) {
   }, [demanda.id]);
 
   useEffect(() => {
-    carregarMensagens();
+    const inicial = setTimeout(carregarMensagens, 0);
     const intervalo = setInterval(carregarMensagens, 8000);
-    return () => clearInterval(intervalo);
+    return () => { clearTimeout(inicial); clearInterval(intervalo); };
   }, [carregarMensagens]);
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export default function ModalChat({ demanda, onClose }) {
 
   const handleEnviar = async (e) => {
     e.preventDefault();
-    if (!texto.trim()) return;
+    if (!texto.trim() || encerrado || enviando) return;
 
     try {
       setEnviando(true);
@@ -51,7 +53,8 @@ export default function ModalChat({ demanda, onClose }) {
       setTexto('');
     } catch (err) {
       console.error('Erro ao enviar mensagem:', err);
-      setErro('Erro ao enviar mensagem. Tente novamente.');
+      setErro(err.response?.data?.erro || 'Erro ao enviar mensagem. Tente novamente.');
+      if (err.response?.data?.codigo === 'CHAT_ENCERRADO') setEncerrado(true);
     } finally {
       setEnviando(false);
     }
@@ -82,7 +85,7 @@ export default function ModalChat({ demanda, onClose }) {
             <p className="text-muted text-sm text-center py-8 font-mono text-xs uppercase tracking-wider">Carregando...</p>
           ) : mensagens.length === 0 ? (
             <p className="text-faint text-sm text-center py-8">
-              Nenhuma mensagem ainda. Envie a primeira.
+              {encerrado ? 'Nenhuma mensagem foi registrada nesta demanda.' : 'Nenhuma mensagem ainda. Envie a primeira.'}
             </p>
           ) : (
             mensagens.map((msg) => {
@@ -119,6 +122,7 @@ export default function ModalChat({ demanda, onClose }) {
           </div>
         )}
 
+        {encerrado && <p className="p-4 bg-panel-2 text-muted text-sm" role="status">Demanda concluída. A conversa está disponível apenas para leitura.</p>}
         <form onSubmit={handleEnviar} className="p-4 border-t border-line flex items-center gap-2 shrink-0">
           <input
             type="text"
@@ -126,11 +130,11 @@ export default function ModalChat({ demanda, onClose }) {
             onChange={(e) => setTexto(e.target.value)}
             placeholder="Ex: Posso ir às 14h?"
             className="flex-1 px-3.5 py-2.5 rounded-md bg-panel-2 border border-line text-ink placeholder-faint focus:outline-none focus:ring-1 focus:ring-blueprint-bright focus:border-blueprint-bright text-sm transition-colors"
-            disabled={enviando}
+            aria-label="Mensagem" maxLength={1000} disabled={enviando || encerrado}
           />
           <button
             type="submit"
-            disabled={enviando || !texto.trim()}
+            disabled={enviando || encerrado || !texto.trim()}
             className="bg-blueprint hover:bg-blueprint-bright disabled:opacity-50 text-white font-medium px-4 py-2.5 rounded-md transition-colors text-sm cursor-pointer whitespace-nowrap"
           >
             Enviar
