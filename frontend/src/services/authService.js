@@ -13,8 +13,8 @@ export const authService = {
     if (response.data?.token) {
       localStorage.setItem('token', response.data.token);
     }
-    if (response.data?.usuario) {
-      localStorage.setItem('user', JSON.stringify(response.data.usuario));
+    if (response.data?.usuario_id) {
+      localStorage.setItem('user', JSON.stringify(response.data));
     }
 
     return response.data;
@@ -35,6 +35,7 @@ export const authService = {
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('usuario');
   },
 
   /**

@@ -7,3 +7,9 @@ node_modules
 # Uploads de imagens enviadas nas demandas (mantém apenas a pasta versionada)
 /uploads/*
 !/uploads/.gitkeep
+
+# Configurações locais e credenciais
+.env.*
+!.env.example
+*.pem
+*.key
