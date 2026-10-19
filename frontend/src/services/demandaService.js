@@ -1,4 +1,13 @@
 import api from './api';
+async function buscarTodas(url) {
+  const itens = []; let pagina = 1;
+  while (true) {
+    const res = await api.get(url, { params: { pagina, limite: 500 } });
+    itens.push(...res.data);
+    if (!res.data.length || itens.length >= Number(res.headers['x-total-count'] || itens.length)) return itens;
+    pagina += 1;
+  }
+}
 
 export const demandaService = {
   // ==========================================
@@ -19,8 +28,7 @@ export const demandaService = {
   },
 
   buscarDemandasMorador: async (idMorador) => {
-    const res = await api.get(`/api/demandas/morador/${idMorador}`);
-    return res.data;
+    return buscarTodas(`/api/demandas/morador/${idMorador}`);
   },
 
   cadastrarMorador: async (dados) => {
@@ -33,8 +41,7 @@ export const demandaService = {
   // OPERÁRIO
   // ==========================================
   buscarDemandasOperario: async (idOperario) => {
-    const res = await api.get(`/api/demandas/operario/${idOperario}`);
-    return res.data;
+    return buscarTodas(`/api/demandas/operario/${idOperario}`);
   },
 
   atualizarStatusOperario: async (idDemanda, dados) => {
@@ -47,8 +54,7 @@ export const demandaService = {
   // ADMIN / TRIAGEM
   // ==========================================
   buscarDemandas: async () => {
-    const res = await api.get('/api/demandas');
-    return res.data;
+    return buscarTodas('/api/demandas');
   },
 
   buscarOperarios: async () => {
@@ -76,8 +82,15 @@ export const demandaService = {
   // CHAT / COMENTÁRIOS DA DEMANDA
   // ==========================================
   buscarComentarios: async (idDemanda) => {
-    const res = await api.get(`/api/demandas/${idDemanda}/comentarios`);
-    return res.data;
+    const mensagens = [];
+    let apos, status;
+    while (true) {
+      const res = await api.get(`/api/demandas/${idDemanda}/comentarios`, { params: { apos } });
+      mensagens.push(...res.data);
+      status = res.headers['x-demanda-status'];
+      if (res.data.length < 500) return { mensagens, status };
+      apos = res.data[res.data.length - 1].id;
+    }
   },
 
   enviarComentario: async (idDemanda, dados) => {

@@ -1,0 +1,46 @@
+
+> api-predial@1.0.0 test
+> node --test tests/*.test.js
+
+✔ health e readiness sem segredos (99.4909ms)
+✔ ID antigo e token adulterado não autenticam (31.3415ms)
+✔ login retorna token assinado sem hash de senha (63.603ms)
+✔ senha incorreta e conta inexistente usam mesma mensagem (96.3031ms)
+✔ morador não acessa administração, relatórios e terceiros (26.0464ms)
+✔ operário não altera tarefa de outro responsável (14.0967ms)
+✔ listagem de usuários usa campos explícitos (13.568ms)
+✔ edição de perfil não eleva privilégios (13.8513ms)
+✔ troca de senha revoga sessão mesmo no mesmo segundo (84.3709ms)
+[ADMIN] usuário #1 bloqueou o usuário #2.
+[ADMIN] usuário #1 desbloqueou o usuário #2.
+✔ bloqueio revoga sessão e desbloqueio não restaura token antigo (17.1295ms)
+✔ recuperação responde genericamente e armazena apenas hash (18.5358ms)
+✔ redefinição consome token uma única vez (79.4292ms)
+✔ limite de tentativas por conta retorna 429 (37.1709ms)
+✔ código administrativo não pode ser criado nem usado no cadastro (78.4683ms)
+[ADMIN] usuário #1 criou código de liberação #1 (MORADOR).
+✔ código comum gera cadastro e não pode ser reutilizado (147.0332ms)
+✔ exclusão de usuário com histórico é recusada (11.165ms)
+[ADMIN] usuário #1 excluiu o usuário #4.
+✔ exclusão de usuário sem histórico remove seu código (12.3314ms)
+✔ criação ignora id_morador forjado e registra histórico (14.7644ms)
+✔ triagem, início, impedimento e conclusão registram histórico (19.7201ms)
+✔ conclusão bloqueia chat e reatribuição, preservando leitura (20.9167ms)
+✔ terceiros não leem chat, histórico ou foto (15.1656ms)
+✔ chat aberto cria mensagem e notificação (12.9672ms)
+✔ foto só pode ser desvinculada pelo dono pendente ou admin (13.226ms)
+✔ arquivo HTML com MIME de imagem é rejeitado (16.6168ms)
+✔ relatórios PDF e Excel geram arquivos reconhecíveis (81.1913ms)
+[API] Falha interna: Error
+✔ erros internos não expõem detalhes (11.4046ms)
+✔ CORS não libera origem desconhecida (12.2751ms)
+✔ token expirado, segredo ausente em produção e estado final (8.3449ms)
+✔ chat pagina conversas longas sem ocultar mensagens novas (14.8493ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2813.1863

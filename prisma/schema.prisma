@@ -44,8 +44,12 @@ tipo_usuario  TipoUsuario @default(MORADOR)
 ativo         Boolean     @default(true)
 criado_em     DateTime    @default(now())
 
+// Guarda o HASH (SHA-256) do token de redefinição, nunca o token em texto puro.
 reset_token        String?   @unique
 reset_token_expira DateTime?
+// Sessões (tokens JWT) emitidas antes desta data deixam de valer (troca/redefinição de senha).
+senha_alterada_em  DateTime?
+sessao_versao      Int @default(0)
 
 demandasCriadas    Demanda[]         @relation("MoradorDemandas")
 demandasAtribuidas Demanda[]         @relation("OperarioDemandas")
@@ -65,6 +69,8 @@ urgencia_real      Urgencia?
 status             StatusDemanda @default(PENDENTE)
 motivo_impedimento String?       @db.Text
 foto_url           String?
+// Identificador do arquivo no Cloudinary (ou nome do arquivo em disco, em desenvolvimento).
+foto_public_id     String?
 sla_prazo          DateTime?
 criado_em          DateTime      @default(now())
 atualizado_em      DateTime      @default(now()) @updatedAt
@@ -78,6 +84,7 @@ operario    Usuario? @relation("OperarioDemandas", fields: [id_operario], refere
 historicos  HistoricoStatus[]
 comentarios ComentarioDemanda[]
 
+@@index([status, criado_em])
 @@map("demandas")
 }
 
@@ -103,6 +110,8 @@ codigo       String      @unique
 tipo_usuario TipoUsuario
 usado        Boolean     @default(false)
 criado_em    DateTime    @default(now())
+// Códigos expiram: depois dessa data não podem mais ser usados no cadastro.
+expira_em    DateTime?
 
 @@map("codigos_liberacao")
 }
@@ -133,5 +142,6 @@ criado_em  DateTime @default(now())
 
 usuario Usuario @relation(fields: [id_usuario], references: [id], onDelete: Cascade)
 
+@@index([id_usuario, lida])
 @@map("notificacoes")
 }

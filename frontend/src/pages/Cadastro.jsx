@@ -35,8 +35,8 @@ export default function Cadastro() {
       return;
     }
 
-    if (formData.senha.length < 6) {
-      setErro('A senha deve ter pelo menos 6 caracteres.');
+    if (formData.senha.length < 8) {
+      setErro('A senha deve ter pelo menos 8 caracteres com letras e números.');
       return;
     }
 

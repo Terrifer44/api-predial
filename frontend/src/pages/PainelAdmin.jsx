@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Header from '../components/Header';
+import DetalhesDemanda from '../components/DetalhesDemanda';
 import Loading from '../components/Loading';
 import StatusBadge from '../components/StatusBadge';
 import { demandaService } from '../services/demandaService';
-import { montarUrlArquivo } from '../services/api';
+import FotoDemanda from '../components/FotoDemanda';
+import ModalChat from '../components/ModalChat';
 import { useAuth } from '../hooks/useAuth';
 import Alerta from '../components/Alerta';
 import ModalShell from '../components/ModalShell';
@@ -12,6 +14,7 @@ const numeroOS = (id) => `OS-${String(id).padStart(4, '0')}`;
 
 export default function PainelAdmin() {
   const { user } = useAuth();
+  const [detalhes,setDetalhes] = useState(null);
   const [demandas, setDemandas] = useState([]);
   const [operarios, setOperarios] = useState([]);
   const [codigos, setCodigos] = useState([]);
@@ -19,6 +22,11 @@ export default function PainelAdmin() {
   const [loading, setLoading] = useState(true);
   const [mensagem, setMensagem] = useState({ texto: '', tipo: '' });
 
+  const [busca,setBusca] = useState('');
+  const [filtroStatus,setFiltroStatus] = useState('');
+  const [pagina,setPagina] = useState(1);
+  const [chat,setChat] = useState(null);
+  const filtradas = demandas.filter(d => (!filtroStatus || d.status===filtroStatus) && `${d.id} ${d.descricao} ${d.setor} ${d.morador?.nome || ''}`.toLocaleLowerCase('pt-BR').includes(busca.toLocaleLowerCase('pt-BR')));
   const [novoCodigo, setNovoCodigo] = useState('');
   const [tipoPerfil, setTipoPerfil] = useState('MORADOR');
 
@@ -31,12 +39,12 @@ export default function PainelAdmin() {
   const [idOperario, setIdOperario] = useState('');
   const [urgenciaReal, setUrgenciaReal] = useState('MEDIA');
 
-  const exibirMensagem = (texto, tipo = 'sucesso') => {
+  const exibirMensagem = useCallback((texto, tipo = 'sucesso') => {
     setMensagem({ texto, tipo });
     setTimeout(() => setMensagem({ texto: '', tipo: '' }), 4000);
-  };
+  }, []);
 
-  const carregarDados = async () => {
+  const carregarDados = useCallback(async () => {
     try {
       setLoading(true);
       const [listaDemandas, listaOperarios, listaCodigos, listaUsuarios] = await Promise.all([
@@ -55,11 +63,12 @@ export default function PainelAdmin() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [exibirMensagem]);
 
   useEffect(() => {
-    carregarDados();
-  }, []);
+    const inicial = setTimeout(carregarDados, 0);
+    return () => clearTimeout(inicial);
+  }, [carregarDados]);
 
   const totalPendentes = demandas.filter((d) => d.status === 'PENDENTE').length;
   const totalAndamento = demandas.filter(
@@ -72,7 +81,7 @@ export default function PainelAdmin() {
 
   const handleGerarCodigo = async (e) => {
     e.preventDefault();
-    if (!novoCodigo.trim()) return;
+
 
     try {
       const criado = await demandaService.gerarCodigoLiberacao(novoCodigo, tipoPerfil);
@@ -88,7 +97,7 @@ export default function PainelAdmin() {
 
   const handleExcluirCodigo = async (id, usado) => {
     const confirmacao = usado
-      ? 'Este código já foi utilizado. Se houver um usuário cadastrado com ele, o usuário também será excluído (ou desativado, se já tiver demandas/histórico). Tem certeza que deseja excluir?'
+      ? 'Este código já foi utilizado. Se houver um usuário cadastrado com ele, o usuário também será excluído (a exclusão será recusada se houver demandas/histórico). Tem certeza que deseja excluir?'
       : 'Tem certeza que deseja excluir este código de liberação?';
 
     if (!window.confirm(confirmacao)) return;
@@ -99,7 +108,7 @@ export default function PainelAdmin() {
       carregarDados();
     } catch (err) {
       console.error(err);
-      exibirMensagem('Erro ao excluir código.', 'erro');
+      exibirMensagem(err.response?.data?.erro || 'Erro ao excluir código.', 'erro');
     }
   };
 
@@ -178,7 +187,7 @@ export default function PainelAdmin() {
     <div className="min-h-screen bg-graphite text-ink flex flex-col">
       <Header />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-10 space-y-8">
+      <main id="conteudo" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-10 space-y-8">
 
         {mensagem.texto && (
           <Alerta tipo={mensagem.tipo || 'sucesso'} onFechar={() => setMensagem({ texto: '', tipo: '' })}>
@@ -187,9 +196,9 @@ export default function PainelAdmin() {
         )}
 
         {/* CABEÇALHO */}
-        <div className="border-b border-line pb-6">
+        <div className="page-heading border-b border-line pb-6">
           <p className="text-[11px] font-mono text-faint uppercase tracking-wider mb-1.5">Administração</p>
-          <h1 className="text-xl font-semibold text-ink tracking-tight">Painel de controle</h1>
+          <h1 className="text-xl font-semibold text-ink tracking-tight">Tudo sob cuidado.</h1><p>Organize os atendimentos, acompanhe os prazos e mantenha sua equipe conectada.</p>
         </div>
 
         {/* PAINEL GERAL */}
@@ -234,8 +243,8 @@ export default function PainelAdmin() {
                 className="w-full px-3.5 py-2.5 rounded-md bg-panel-2 border border-line text-ink font-mono uppercase placeholder-faint focus:outline-none focus:ring-1 focus:ring-blueprint-bright focus:border-blueprint-bright text-sm transition-colors"
                 value={novoCodigo}
                 onChange={(e) => setNovoCodigo(e.target.value.toUpperCase())}
-                placeholder="EX: MOR102"
-                required
+                placeholder="Deixe vazio para gerar automaticamente"
+                aria-label="Código de liberação opcional"
               />
               <div className="flex gap-2.5">
                 <select
@@ -400,9 +409,11 @@ export default function PainelAdmin() {
             </p>
           </div>
 
+          <div className="filter-bar"><input aria-label="Buscar demandas" placeholder="Buscar por descrição, morador ou número…" value={busca} onChange={(e)=>{setBusca(e.target.value);setPagina(1);}}/><select aria-label="Filtrar por status" value={filtroStatus} onChange={(e)=>{setFiltroStatus(e.target.value);setPagina(1);}}><option value="">Todos os status</option>{[['PENDENTE','Pendentes'],['ATRIBUIDA','Atribuídas'],['EM_ANDAMENTO','Em andamento'],['IMPEDIMENTO','Impedidas'],['CONCLUIDA','Concluídas']].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select><button className="text-sm text-blueprint px-3" onClick={()=>{setPagina(1);carregarDados();}}>Atualizar</button></div>
+          <div className="flex justify-between items-center text-sm text-muted"><span>{filtradas.length} solicitações encontradas</span><div className="flex gap-4"><button disabled={pagina===1} onClick={()=>setPagina(p=>p-1)}>← Anterior</button><span>{pagina} / {Math.max(1,Math.ceil(filtradas.length/10))}</span><button disabled={pagina*10>=filtradas.length} onClick={()=>setPagina(p=>p+1)}>Próxima →</button></div></div>
           {loading ? (
             <Loading mensagem="Carregando solicitações..." />
-          ) : demandas.length === 0 ? (
+          ) : filtradas.length === 0 ? (
             <div className="bg-panel border border-dashed border-line rounded-lg p-8 text-center text-muted text-sm">
               Nenhuma solicitação encontrada no momento.
             </div>
@@ -423,7 +434,7 @@ export default function PainelAdmin() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line-soft">
-                    {demandas.map((item) => (
+                    {filtradas.slice((pagina-1)*10,pagina*10).map((item) => (
                       <tr key={item.id} className="hover:bg-panel-2/40 transition-colors">
                         <td className="p-3.5 font-mono text-blueprint-bright">{numeroOS(item.id)}</td>
                         <td className="p-3.5 text-ink font-medium">{item.setor}</td>
@@ -456,12 +467,14 @@ export default function PainelAdmin() {
                         </td>
                         <td className="p-3.5">
                           <div className="flex items-center justify-center gap-1.5">
-                            {item.status === 'PENDENTE' && (
+<button type="button" className="text-blueprint px-2 py-2" onClick={() => setDetalhes(item)}>Detalhes</button><button type="button" className="text-blueprint px-2 py-2" onClick={() => setChat(item)}>Conversa</button>
+                            {item.status !== 'CONCLUIDA' && (
                               <button
                                 type="button"
                                 className="bg-blueprint/15 hover:bg-blueprint/25 border border-blueprint/30 text-blueprint-bright font-medium px-3 py-1.5 rounded text-xs cursor-pointer"
                                 onClick={() => {
                                   setDemandaSelecionada(item);
+                                  setIdOperario(item.id_operario || '');
                                   setUrgenciaReal(item.urgencia_morador);
                                 }}
                               >
@@ -487,6 +500,8 @@ export default function PainelAdmin() {
           )}
         </section>
 
+        {detalhes && <DetalhesDemanda demanda={detalhes} onClose={()=>setDetalhes(null)} podeRemover onRemovida={()=>{setDetalhes(d=>({...d,foto_url:null}));carregarDados();}}/>}
+      {chat && <ModalChat demanda={chat} onClose={()=>setChat(null)}/>}
         {/* MODAL DE TRIAGEM */}
         {demandaSelecionada && (
           <ModalShell onClose={() => setDemandaSelecionada(null)}>
@@ -503,13 +518,7 @@ export default function PainelAdmin() {
                   </div>
 
                   {demandaSelecionada.foto_url && (
-                    <a href={montarUrlArquivo(demandaSelecionada.foto_url)} target="_blank" rel="noopener noreferrer" className="block mt-3">
-                      <img
-                        src={montarUrlArquivo(demandaSelecionada.foto_url)}
-                        alt="Foto anexada pelo morador"
-                        className="w-full max-h-48 object-cover rounded-md border border-line hover:opacity-90 transition-opacity"
-                      />
-                    </a>
+                    <FotoDemanda demanda={demandaSelecionada} podeRemover onRemovida={() => { setDemandaSelecionada((d) => ({ ...d, foto_url: null })); carregarDados(); }} />
                   )}
                 </div>
 

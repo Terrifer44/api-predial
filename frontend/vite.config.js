@@ -13,10 +13,10 @@ export default defineConfig({
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'Sistema de Manutenção Predial',
-        short_name: 'Manutenção',
+        short_name: 'Predial',
         description: 'Registro e acompanhamento de solicitações de manutenção predial.',
-        theme_color: '#14171a',
-        background_color: '#14171a',
+        theme_color: '#153f46',
+        background_color: '#153f46',
         display: 'standalone',
         start_url: '/login',
         scope: '/',
@@ -28,7 +28,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
-        navigateFallbackDenylist: [/^\/uploads\//],
+        navigateFallbackDenylist: [/^\/uploads\//, /^\/api\//],
       },
     }),
   ],

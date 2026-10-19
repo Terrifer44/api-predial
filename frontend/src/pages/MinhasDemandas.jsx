@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import Header from '../components/Header';
+import DetalhesDemanda from '../components/DetalhesDemanda';
 import Loading from '../components/Loading';
 import ModalChat from '../components/ModalChat';
 import StatusBadge from '../components/StatusBadge';
-import SlaTag, { slaAtrasado } from '../components/SlaTag';
+import SlaTag from '../components/SlaTag';
+import { slaAtrasado } from '../utils/sla';
 import { demandaService } from '../services/demandaService';
-import { montarUrlArquivo } from '../services/api';
+import FotoDemanda from '../components/FotoDemanda';
 import { useAuth } from '../hooks/useAuth';
 import { Link, useNavigate } from 'react-router-dom';
 import Alerta from '../components/Alerta';
@@ -15,6 +17,7 @@ const numeroOS = (id) => `OS-${String(id).padStart(4, '0')}`;
 
 export default function MinhasDemandas() {
   const { user } = useAuth();
+  const [detalhes,setDetalhes] = useState(null);
   const navigate = useNavigate();
   const [demandas, setDemandas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +46,7 @@ export default function MinhasDemandas() {
     <div className="min-h-screen bg-graphite text-ink flex flex-col">
       <Header />
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-10 space-y-6">
+      <main id="conteudo" className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-10 space-y-6">
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-line pb-6">
           <div className="flex items-center gap-3">
@@ -113,26 +116,20 @@ export default function MinhasDemandas() {
                     </div>
 
                     {demanda.foto_url && (
-                      <a href={montarUrlArquivo(demanda.foto_url)} target="_blank" rel="noopener noreferrer">
-                        <img
-                          src={montarUrlArquivo(demanda.foto_url)}
-                          alt={`Foto anexada à demanda ${numeroOS(demanda.id)}`}
-                          className="w-full max-h-56 object-cover rounded-md border border-line hover:opacity-90 transition-opacity"
-                        />
-                      </a>
+                      <FotoDemanda demanda={demanda} podeRemover={demanda.status === 'PENDENTE'} onRemovida={() => setDemandas((lista) => lista.map((d) => d.id === demanda.id ? { ...d, foto_url: null } : d))} />
                     )}
 
                     <p className="text-ink/90 text-sm leading-relaxed whitespace-pre-line">
                       {demanda.descricao}
                     </p>
 
-                    {demanda.observacao_operario && (
+                    {demanda.motivo_impedimento && (
                       <div className="bg-amber/10 border border-amber/20 text-amber p-3 rounded-md space-y-1">
                         <span className="font-mono font-semibold block text-[10px] uppercase tracking-wider">
                           Observação técnica do operário
                         </span>
                         <p className="text-xs leading-relaxed text-amber/90">
-                          {demanda.observacao_operario}
+                          {demanda.motivo_impedimento}
                         </p>
                       </div>
                     )}
@@ -143,12 +140,13 @@ export default function MinhasDemandas() {
                         {demanda.sla_prazo && <SlaTag demanda={demanda} />}
                       </div>
 
+                      <button type="button" className="text-blueprint text-sm px-3 py-2" onClick={()=>setDetalhes(demanda)}>Ver histórico</button>
                       <button
                         type="button"
                         onClick={() => setDemandaChat(demanda)}
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-blueprint-bright hover:text-ink bg-panel-2 hover:bg-line/60 border border-line px-3 py-1.5 rounded-md transition-colors cursor-pointer"
                       >
-                        Conversar sobre esta demanda
+                        {statusAtual === 'CONCLUIDA' ? 'Ver conversa encerrada' : 'Conversar sobre esta demanda'}
                       </button>
                     </div>
                   </div>
@@ -160,6 +158,7 @@ export default function MinhasDemandas() {
 
       </main>
 
+      {detalhes && <DetalhesDemanda demanda={detalhes} onClose={()=>setDetalhes(null)}/>}
       {demandaChat && (
         <ModalChat demanda={demandaChat} onClose={() => setDemandaChat(null)} />
       )}

@@ -1,92 +1,13 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Header from '../components/Header';
+import StatusBadge from '../components/StatusBadge';
+import Alerta from '../components/Alerta';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
-
+import { demandaService } from '../services/demandaService';
 export default function Dashboard() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-
-  const nomeUsuario = user?.usuario_nome || user?.nome || user?.nome_completo || 'Morador';
-  const primeiroNome = nomeUsuario.split(' ')[0];
-
-  const handleKeyDown = (e, path) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      navigate(path);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-graphite text-ink flex flex-col">
-      <Header />
-
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-10 space-y-8">
-
-        <section className="border-b border-line pb-6">
-          <p className="text-[11px] font-mono text-faint uppercase tracking-wider mb-1.5">Portal do morador</p>
-          <h1 className="text-2xl font-semibold text-ink tracking-tight">
-            Olá, {primeiroNome}
-          </h1>
-          <p className="text-muted text-sm mt-1.5">
-            O que você deseja fazer hoje?
-          </p>
-        </section>
-
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-          <div
-            className="group relative bg-panel hover:border-blueprint/50 border border-line rounded-lg overflow-hidden transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-blueprint-bright"
-            onClick={() => navigate('/nova-demanda')}
-            onKeyDown={(e) => handleKeyDown(e, '/nova-demanda')}
-            role="button"
-            tabIndex={0}
-          >
-            <div className="h-[3px] bg-blueprint" />
-            <div className="p-6 sm:p-7 flex flex-col justify-between gap-6 min-h-[180px]">
-              <div className="space-y-2">
-                <span className="text-[11px] font-mono text-blueprint-bright uppercase tracking-wider">01 — Abrir chamado</span>
-                <h2 className="text-lg font-semibold text-ink">
-                  Nova demanda
-                </h2>
-                <p className="text-muted text-sm leading-relaxed">
-                  Registre uma solicitação de manutenção para o seu apartamento ou área comum, com foto do problema se preferir.
-                </p>
-              </div>
-
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-blueprint-bright group-hover:gap-2.5 transition-all">
-                Acessar <span aria-hidden>→</span>
-              </span>
-            </div>
-          </div>
-
-          <div
-            className="group relative bg-panel hover:border-line-soft border border-line rounded-lg overflow-hidden transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-blueprint-bright"
-            onClick={() => navigate('/minhas-demandas')}
-            onKeyDown={(e) => handleKeyDown(e, '/minhas-demandas')}
-            role="button"
-            tabIndex={0}
-          >
-            <div className="h-[3px] bg-line" />
-            <div className="p-6 sm:p-7 flex flex-col justify-between gap-6 min-h-[180px]">
-              <div className="space-y-2">
-                <span className="text-[11px] font-mono text-muted uppercase tracking-wider">02 — Acompanhar</span>
-                <h2 className="text-lg font-semibold text-ink">
-                  Minhas demandas
-                </h2>
-                <p className="text-muted text-sm leading-relaxed">
-                  Veja o status, prazo de atendimento e histórico de todas as suas solicitações abertas.
-                </p>
-              </div>
-
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink group-hover:gap-2.5 transition-all">
-                Acessar <span aria-hidden>→</span>
-              </span>
-            </div>
-          </div>
-
-        </section>
-
-      </main>
-    </div>
-  );
+ const {user}=useAuth(); const [demandas,setDemandas]=useState(null); const [erro,setErro]=useState('');
+ useEffect(()=>{let ativo=true; demandaService.buscarDemandasMorador(user.usuario_id || user.id).then((d)=>{if(ativo)setDemandas(d);}).catch(()=>{if(ativo)setErro('Não foi possível carregar suas demandas. Tente novamente na página Minhas demandas.');});return()=>{ativo=false;};},[user.usuario_id,user.id]);
+ const metricas=[['Solicitações abertas',demandas?.filter(d=>d.status!=='CONCLUIDA').length,'text-blueprint'],['Em atendimento',demandas?.filter(d=>['EM_ANDAMENTO','ATRIBUIDA'].includes(d.status)).length,'text-amber'],['Concluídas',demandas?.filter(d=>d.status==='CONCLUIDA').length,'text-moss']];
+ return <div className="min-h-screen bg-graphite"><Header/><main id="conteudo" className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-7"><section className="welcome-banner"><div><span className="eyebrow text-[#b9d9ce]">PORTAL DO MORADOR</span><h1>Olá, {user.nome?.split(' ')[0]}.<br/>Vamos cuidar do seu espaço?</h1><p>Abra uma solicitação e acompanhe cada etapa do atendimento.</p></div><Link to="/nova-demanda" className="primary-button">+ Nova demanda</Link></section>{erro&&<Alerta tipo="erro">{erro}</Alerta>}<section className="grid sm:grid-cols-3 gap-4" aria-label="Resumo das suas solicitações">{metricas.map(([label,n,cor])=><div className="surface-card p-6" key={label}><p className="text-sm text-muted">{label}</p><p className={`metric-number mt-3 ${cor}`}>{n ?? '—'}</p><p className="text-xs text-faint mt-3">Suas solicitações de manutenção</p></div>)}</section><div className="grid lg:grid-cols-[1fr_290px] gap-6"><section className="surface-card overflow-hidden"><div className="p-6 flex justify-between items-center border-b border-line"><h2 className="font-semibold">Últimas solicitações</h2><Link to="/minhas-demandas" className="text-sm text-blueprint">Ver todas →</Link></div>{demandas===null ? <p className="p-8 text-muted">{erro?'Dados indisponíveis.':'Carregando solicitações…'}</p> : demandas.length===0 ? <div className="p-10 text-center"><span className="avatar avatar-large">✓</span><h3 className="mt-4 font-semibold">Tudo começa com um chamado.</h3><p className="text-muted text-sm mt-2">Quando precisar de manutenção, estamos por aqui.</p><Link to="/nova-demanda" className="text-blueprint inline-block text-sm mt-5">Criar minha primeira demanda →</Link></div> : <ul className="divide-y divide-line-soft">{demandas.slice(0,5).map(d=><li key={d.id}><Link to="/minhas-demandas" className="p-5 flex flex-wrap justify-between gap-3 hover:bg-panel-2"><div className="min-w-0 flex-1"><span className="font-mono text-xs text-faint">OS-{String(d.id).padStart(4,'0')} · {d.setor}</span><p className="text-sm font-medium truncate mt-2">{d.descricao}</p><p className="text-xs text-muted mt-1">{new Date(d.criado_em).toLocaleDateString('pt-BR')}</p></div><StatusBadge status={d.status}/></Link></li>)}</ul>}</section><aside className="surface-card p-6 self-start"><span className="eyebrow text-blueprint">BOM SABER</span><h2 className="text-lg font-semibold mt-4">Um bom relato ajuda muito.</h2><p className="text-muted text-sm leading-relaxed mt-3">Informe o local do problema, descreva o que aconteceu e, se puder, anexe uma foto. Assim, a equipe chega mais preparada.</p><div className="border-t border-line mt-6 pt-5"><Link to="/ajuda" className="text-blueprint text-sm font-semibold">Dúvidas frequentes →</Link></div></aside></div><footer className="text-xs text-faint text-center py-4">Predial · Cada detalhe importa.</footer></main></div>;
 }

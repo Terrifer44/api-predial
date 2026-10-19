@@ -3,6 +3,8 @@ import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './hooks/useAuth';
 
 import Loading from './components/Loading';
+import Perfil from './pages/Perfil';
+import NotFound from './pages/NotFound';
 
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -83,11 +85,13 @@ function RotaOperario({ children }) {
 // ROTEAMENTO PRINCIPAL
 // ==========================================
 
+function RotaAutenticada({ children }) { const {user,loading}=useAuth(); if(loading)return <Loading/>; return user ? children : <Navigate to="/login" replace/>; }
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/perfil" element={<RotaAutenticada><Perfil/></RotaAutenticada>}/>
           {/* Rotas Públicas */}
           <Route
             path="/login"
@@ -174,7 +178,7 @@ export default function App() {
           />
 
           {/* Rota Not Found (404 / Desconhecida) */}
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

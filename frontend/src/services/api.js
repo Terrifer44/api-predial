@@ -1,58 +1,29 @@
 import axios from 'axios';
-
-// Base URL do backend. Usada também para montar links de arquivos estáticos
-// (ex: fotos enviadas nas demandas), já que o frontend roda em outra porta/origem.
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
-// Monta a URL completa de um arquivo salvo no backend (ex: "/uploads/demanda-1.jpg").
+export const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
 export function montarUrlArquivo(caminho) {
   if (!caminho) return null;
-  if (caminho.startsWith('http')) return caminho;
+  if (/^https:\/\//.test(caminho)) return caminho;
   return `${API_BASE_URL}${caminho}`;
 }
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+export function lerSessao() {
+  try { return JSON.parse(sessionStorage.getItem('predial.sessao') || 'null'); } catch { return null; }
+}
+export function salvarSessao(dados) {
+  if (dados) sessionStorage.setItem('predial.sessao', JSON.stringify(dados));
+  else sessionStorage.removeItem('predial.sessao');
+  for (const key of ['usuario', 'user', 'token']) localStorage.removeItem(key);
+}
+const api = axios.create({ baseURL: API_BASE_URL, timeout: 20000 });
+api.interceptors.request.use((config) => {
+  const token = lerSessao()?.token;
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
 });
-
-// Interceptor de Requisição: identifica o usuário logado em toda chamada.
-// O backend usa esse cabeçalho para verificar (no servidor, não só na tela)
-// se quem está chamando realmente existe, está ativo e tem o perfil
-// necessário para a ação — ver "identificarUsuario"/"exigirPerfil" no server.js.
-api.interceptors.request.use(
-  (config) => {
-    try {
-      const usuarioSalvo = localStorage.getItem('usuario');
-      if (usuarioSalvo) {
-        const usuario = JSON.parse(usuarioSalvo);
-        const id = usuario?.usuario_id || usuario?.id;
-        if (id) {
-          config.headers['x-usuario-id'] = id;
-        }
-      }
-    } catch (e) {
-      // localStorage corrompido: segue sem o cabeçalho, o backend vai recusar como não autenticado.
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Interceptor de Resposta: trata sessão inválida (401) ou sem permissão (403).
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('usuario');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
-    }
-    return Promise.reject(error);
+api.interceptors.response.use((r) => r, (error) => {
+  if (error.response?.status === 401 && error.config?.headers?.Authorization && !/\/(?:api\/)?login$/.test(error.config.url)) {
+    salvarSessao(null);
+    window.dispatchEvent(new Event('predial:sessao-expirada'));
   }
-);
-
+  return Promise.reject(error);
+});
 export default api;

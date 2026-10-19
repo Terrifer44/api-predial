@@ -3,11 +3,13 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { demandaService } from '../services/demandaService';
 import FormField from '../components/FormField';
 import Alerta from '../components/Alerta';
+import { useAuth } from '../hooks/useAuth';
 
 export default function RedefinirSenha() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') || '';
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const [novaSenha, setNovaSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
@@ -28,14 +30,15 @@ export default function RedefinirSenha() {
       setErro('As senhas digitadas não conferem.');
       return;
     }
-    if (novaSenha.length < 6) {
-      setErro('A senha deve ter pelo menos 6 caracteres.');
+    if (novaSenha.length < 8) {
+      setErro('A senha deve ter pelo menos 8 caracteres com letras e números.');
       return;
     }
 
     try {
       setCarregando(true);
       await demandaService.redefinirSenha(token, novaSenha);
+      logout();
       setSucesso('Senha redefinida com sucesso! Redirecionando para o login...');
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
